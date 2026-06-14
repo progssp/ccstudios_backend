@@ -17,7 +17,7 @@ class CheckTokenInCookie
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->cookie("token")) {
-            Log::info("cookie found in test: " . $request->cookie("token"));
+            //Log::info("cookie found in test: " . $request->cookie("token"));
             $request->headers->set(
                 "Authorization",
                 "Bearer " . $request->cookie("token"),

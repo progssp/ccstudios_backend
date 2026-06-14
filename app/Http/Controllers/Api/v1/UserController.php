@@ -15,8 +15,7 @@ class UserController extends Controller {
 
     public function login_view(Request $request){
         if(strpos($request->url(),"api") > 0){
-            return response()->json(['status'=>false,'msg'=>'you are not an authenticated us
-er']);
+            return response()->json(['status'=>false,'msg'=>'you are not an authenticated user']);
         }
         else{
             return response()->json(['status'=>false,'msg'=>'you cannot access this url']);
@@ -29,7 +28,7 @@ er']);
             'password' => 'required'
         ]);
         if($validator->fails()){
-            return response()->json(['status'=>false,'errors'=>$validator->errors()]);
+            return response()->json(['status'=>false,'msg'=>$validator->errors()->all()]);
         }
         $username = $request->username;
         $password = $request->password;
@@ -74,7 +73,7 @@ er']);
             'password' => 'required'
         ]);
         if($validator->fails()){
-            return response()->json(['status'=>false,'errors'=>$validator->errors()]);
+            return response()->json(['status'=>false,'errors'=>$validator->errors()->all()]);
         }
         $username = $request->username;
         $firstname = $request->firstname;
@@ -186,7 +185,7 @@ er']);
     }
 
     public function check_auth(Request $request){
-        return response()->json(['status'=>true,'msg'=>'auth successful']);
+        return response()->json(['status'=>true,'msg'=>'auth successful','user'=>$request->user()]);
     }
 
     public function check_username_availability(Request $request){
@@ -195,7 +194,7 @@ er']);
             'username' => 'required|max:6|min:6'
         ]);
         if($validator->fails()){
-            return response()->json(['status'=>false,'msg' => $validator->errors()]);
+            return response()->json(['status'=>false,'msg' => $validator->errors()->all()]);
         }
 
         $username = $request->username;
