@@ -14,7 +14,18 @@ return Application::configure(basePath: dirname(__DIR__))
         ],
         apiPrefix: 'system/api',
         commands: __DIR__.'/../routes/console.php',
+        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
+    )
+    ->withBroadcasting(
+        __DIR__.'/../routes/channels.php',
+        [
+            'prefix' => 'system/api/v1',
+            'middleware' => [
+                \App\Http\Middleware\CheckTokenInCookie::class,
+                'auth:api',
+            ]
+        ],
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
@@ -23,7 +34,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->priority([
             \App\Http\Middleware\CheckTokenInCookie::class,
-            \Iluminate\Auth\Middleware\Authenticate::class,
+            // \Iluminate\Auth\Middleware\Authenticate::class,
+            'auth:api'
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

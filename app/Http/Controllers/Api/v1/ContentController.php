@@ -15,47 +15,57 @@ use App\Exceptions\CreatePlaylistException;
 use App\Exceptions\UploadToBucketException;
 use Illuminate\Support\Facades\Log;
 use App\Models\CcstudiosContent;
+use Exception;
 
 class ContentController extends Controller
 {
     
-    public function upload(Request $request){        
+    public function upload(Request $request){
+                
         $validator = Validator::make($request->all(),[
             'actual_content' => 'required|file',
+            'thumbnail' => 'required|file',
             'video_name' => 'required',
         ]);
         if($validator->fails()){
             return response()->json(['status'=>false,'errors'=>$validator->errors()]);
         }
-        
-        $data = $request->all();
-        unset($data['actual_content']);
-        $data['user'] = $request->user();
 
-        $input_file_name = Str::random();
+       
         
-        $path = $request->file('actual_content')->storeAs('uploads',$input_file_name.'.'.$request->file('actual_content')->getClientOriginalExtension(),'local');
+            $data = $request->all();
+            unset($data['actual_content']);
+            unset($data['thumbnail']);
+            $data['user'] = $request->user();
+
+            $input_file_name = Str::random();
+            
+            $path = $request->file('actual_content')
+            ->storeAs('uploads',$input_file_name.'.'.$request->file('actual_content')
+            ->getClientOriginalExtension(),'local');
+            
+            $absInputDir = storage_path('app/private/'.$path);
+
+            $outputDir = 'hls_outputs/'.$input_file_name;
+            $absOutputDir = storage_path('app/private/'.$outputDir);
         
-        $absInputDir = storage_path('app/private/'.$path);
-
-        $outputDir = 'hls_outputs/'.$input_file_name;
-        $absOutputDir = storage_path('app/private/'.$outputDir);
         
 
-        ProcessContentJob::dispatch(
-            $data,
-            $input_file_name,
-            $absInputDir,
-            $absOutputDir
-        );
+            ProcessContentJob::dispatch(
+                $data,
+                $input_file_name,
+                $absInputDir,
+                $absOutputDir
+            );
 
-        return response()->json([
-            'status' => true,
-            'msg' => 'uploaded',
-            'input_file_name' => $input_file_name,
-            'orig_file_path' => $absInputDir,
-            'output_file_path' => $absOutputDir,
-        ]);
+            return response()->json([
+                'status' => true,
+                'msg' => 'uploaded',
+                'input_file_name' => $input_file_name,
+                'orig_file_path' => $absInputDir,
+                'output_file_path' => $absOutputDir,
+            ]);
+       
     }
 
     public function get_all_content(Request $request){

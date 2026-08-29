@@ -18,10 +18,10 @@ class ProcessContentJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        private $request_data,
-        private $content_id,
-        private $original_file_path,
-        private $output_path){}
+        private array $request_data,
+        private string $content_id,
+        private string $original_file_path,
+        private string $output_path){}
 
     /**
      * Execute the job.
@@ -29,7 +29,12 @@ class ProcessContentJob implements ShouldQueue
     public function handle(ContentPipelineService $pipeline): void
     {
         try{
-            $pipeline->process($this->request_data,$this->content_id,$this->original_file_path,$this->output_path);
+            $pipeline->process(
+                $this->request_data,
+                $this->content_id,
+                $this->original_file_path,
+                $this->output_path
+            );
         }
         catch(GetResolutionException $err){
             Log::error($err->getMessage());

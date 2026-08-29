@@ -9,30 +9,70 @@ use Illuminate\Support\Facades\Log;
 use App\Exceptions\GetResolutionException;
 use App\Exceptions\CreatePlaylistException;
 use App\Exceptions\UploadToBucketException;
+use App\Events\NewUserNotification;
+use App\Services\UpdateStatusService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Database\Eloquent\Model;
 use App\Models\CcstudiosContent;
 use Exception;
 
 class ContentPipelineService
 {
-    private $original_height;
-    private $content_id;
-    private $original_file_path;
-    private $output_path;
+    private int $original_height;
+    private string $content_id;
+    private string $original_file_path;
+    private string $output_path;
+    private array $request_data;
+    private Model $new_record;
+    private UpdateStatusService $update_status;
+
+    public function __construct(UpdateStatusService $update_status_service)
+    {
+        $this->update_status = $update_status_service;
+    }
         
-    public function process($request_data,$content_id,$original_file_path,$output_path){
+    public function process(
+        array $request_data,
+        string $content_id,
+        string $original_file_path,
+        string $output_path
+    ){
         $this->request_data = $request_data;
         $this->content_id = $content_id;
         $this->original_file_path = $original_file_path;
         $this->output_path = $output_path;
-        
+
+        $this->saveToDatabase();        
         $this->original_height = $this->getOriginalResolution();
         $this->createPlaylist();
         $this->uploadContentFolder();
-        $this->saveToDatabase($this->request_data);
+        
+    }
+
+    public function saveToDatabase(){
+        $new_content = new CcstudiosContent();
+        $new_content->user_id = $this->request_data['user']->id;
+        $new_content->video_name = $this->request_data['video_name'];
+        $new_content->video_name_identifier = $this->content_id;
+        $new_content->thumbnail = 'thumbnail';
+        $new_content->video_stream_path = "content/".$this->content_id."/master.m3u8";
+        $new_content->video_meta_details = json_encode('meta_data');
+        $new_content->save();
+        $this->new_record = $new_content;
+        
+        $this->update_status->update(
+            $this->request_data['user']->id,
+            $this->new_record,
+            "processing"
+        );
     }
 
     public function getOriginalResolution() : int {
+        $this->update_status->update(
+            $this->request_data['user']->id,
+            $this->new_record,
+            "extracting highest resolution"
+        );
         try{
             $ffprobe = "/usr/bin/ffprobe";
             $process = new Process([
@@ -89,6 +129,11 @@ class ContentPipelineService
 
                 if((int)$res['res_height'] > (int)$this->original_height){continue;}
 
+                $this->update_status->update(
+                    $this->request_data['user']->id,
+                    $this->new_record,
+                    "processing " . $res['res_dir']
+                );
                 mkdir($this->output_path.'/'.$res['res_dir'],0777,true);
 
                 $process = new Process([
@@ -123,6 +168,11 @@ class ContentPipelineService
     }
 
     public function uploadContentFolder(){
+        $this->update_status->update(
+            $this->request_data['user']->id,
+            $this->new_record,
+            "moving content to safe vault"
+        );
         try{
             $localVideoPath = $this->output_path;
 
@@ -131,7 +181,7 @@ class ContentPipelineService
             }
 
             $files = File::allFiles($localVideoPath);
-            $supabaseUrl = env('SUPABASE_URL');
+            $supabaseUrl = env('SUPABASE_ENDPOINT');
             $serviceKey = env('SUPABASE_SERVICE_KEY');
             $bucket = env('SUPABASE_BUCKET');
 
@@ -166,20 +216,17 @@ class ContentPipelineService
                     throw new Exception("supabase error: " . $response->body());
                 }
             }
+
+            $this->update_status->update(
+                $this->request_data['user']->id,
+                $this->new_record,
+                "done"
+            );
         }        
         catch(Exception $err){
             throw new UploadToBucketException("upload to bucket err for ".$this->content_id.": " . $err->getMessage());
         }
     }
 
-    public function saveToDatabase(){
-        $new_content = new CcstudiosContent();
-        $new_content->user_id = $this->request_data['user']->id;
-        $new_content->video_name = $this->request_data['video_name'];
-        $new_content->video_name_identifier = $this->content_id;
-        $new_content->thumbnail = 'thumbnail';
-        $new_content->video_stream_path = "content/".$this->content_id."/master.m3u8";
-        $new_content->video_meta_details = json_encode('meta_data');
-        $new_content->save();
-    }
+    
 }

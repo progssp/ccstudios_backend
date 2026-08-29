@@ -16,9 +16,11 @@ return new class extends Migration
             $table->unsignedBigInteger('user_id');
             $table->string('video_name');
             $table->string('video_name_identifier');
-            $table->string('thumbnail');
+            $table->string('thumbnail')->nullable()->default(NULL);
             $table->string('video_stream_path');
             $table->json('video_meta_details');
+            $table->string('video_status')->nullable()->default(NULL);
+            $table->string('video_status_msg')->nullable()->default(NULL);
             $table->timestamps();
             $table->softDeletes();
             $table->foreign('user_id')->references('id')->on('users'); 
@@ -30,6 +32,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('ccstudios_content');
+        Schema::dropIfExists('ccstudios_contents');
     }
 };
