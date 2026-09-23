@@ -18,7 +18,7 @@ use Exception;
 
 class UpdateStatusService
 {
-    public function update(int $user_id,Model $new_record,string $new_status){
+    public function update(int $user_id,Model $new_record=null,string $new_status){
         NewUserNotification::dispatch(
             $user_id,
             $new_record,

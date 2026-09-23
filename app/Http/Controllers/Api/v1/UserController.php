@@ -7,11 +7,22 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
+use App\Services\UpdateStatusService;
 
 class UserController extends Controller {
+
+    private UpdateStatusService $update_status;
+
+    public function __construct(UpdateStatusService $update_status_service)
+    {
+        $this->update_status = $update_status_service;
+    }
 
     public function login_view(Request $request){
         if(strpos($request->url(),"api") > 0){
@@ -117,7 +128,7 @@ class UserController extends Controller {
 
     public function logout(Request $request){
         unset($_COOKIE['token']);
-        $cookie = \Cookie::forget('token');
+        $cookie = Cookie::forget('token');
         // Auth::logout();
         return response()->json([
             'status' => true,
@@ -215,4 +226,27 @@ class UserController extends Controller {
 
     }
 
+    public function push_test_notification(Request $request){
+
+        $validator = Validator::make($request->all(),[
+            'msg' => 'required'
+        ]);
+        if($validator->fails()){
+            return response()->json([
+                'status' => false,
+                'msg' => $validator->errors()->all()
+            ]);
+        }
+
+        $this->update_status->update(
+            $request->user()->id, 
+            null,           
+            "testing no." . rand(1,1000)
+        );
+
+        return response()->json([
+            'status' => true,
+            'msg' => 'done'
+        ]);
+    }
 }

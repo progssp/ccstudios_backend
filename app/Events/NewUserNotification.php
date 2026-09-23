@@ -17,13 +17,13 @@ class NewUserNotification implements ShouldBroadcastNow
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public int $user_id;
-    public Model $new_record;
+    public ?Model $new_record;
     public string $new_status;
 
     /**
      * Create a new event instance.
      */
-    public function __construct(int $user_id, Model $new_record, string $new_status)
+    public function __construct(int $user_id, ?Model $new_record=null, string $new_status)
     {
         $this->user_id = $user_id;
         $this->new_record = $new_record;

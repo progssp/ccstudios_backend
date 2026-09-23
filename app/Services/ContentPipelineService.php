@@ -6,6 +6,8 @@ use Symfony\Component\Process\Process;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use App\Exceptions\GetResolutionException;
 use App\Exceptions\CreatePlaylistException;
 use App\Exceptions\UploadToBucketException;
@@ -45,18 +47,21 @@ class ContentPipelineService
         $this->saveToDatabase();        
         $this->original_height = $this->getOriginalResolution();
         $this->createPlaylist();
-        $this->uploadContentFolder();
+        // $this->uploadContentFolder();
+        $this->move_to_bucket();
         
     }
 
     public function saveToDatabase(){
         $new_content = new CcstudiosContent();
         $new_content->user_id = $this->request_data['user']->id;
-        $new_content->video_name = $this->request_data['video_name'];
+        // $new_content->video_name = $this->request_data['video_name'];
+        $new_content->video_name = Str::random(10);
         $new_content->video_name_identifier = $this->content_id;
-        $new_content->thumbnail = 'thumbnail';
+        $new_content->thumbnail = Str::random(10);
+        // $new_content->thumbnail = 'thumbnail';
         $new_content->video_stream_path = "content/".$this->content_id."/master.m3u8";
-        $new_content->video_meta_details = json_encode('meta_data');
+        $new_content->video_meta_details = json_encode(Str::random(10));
         $new_content->save();
         $this->new_record = $new_content;
         
@@ -226,6 +231,54 @@ class ContentPipelineService
         catch(Exception $err){
             throw new UploadToBucketException("upload to bucket err for ".$this->content_id.": " . $err->getMessage());
         }
+    }
+
+
+    public function move_to_bucket(){
+        $this->update_status->update(
+            $this->request_data['user']->id,
+            $this->new_record,
+            "moving content to safe vault"
+        );
+        try{
+            $localVideoPath = $this->output_path;
+            
+            if(!File::exists($localVideoPath)){
+                throw new Exception($this->content_id.": ".$localVideoPath." not found!");
+            }
+
+            $all_files = File::allFiles($localVideoPath);
+
+            foreach($all_files as $file){
+
+                $filePath = $file->getRealPath();
+
+                $relativePath = $this->content_id . DIRECTORY_SEPARATOR . str_replace($localVideoPath . DIRECTORY_SEPARATOR,'',$filePath);
+
+                $dest_path = 'content/' . str_replace('\\','/',$relativePath);
+
+                $file_stream = fopen($filePath, "r+");
+
+                Storage::disk('s3')->put(
+                    $dest_path,
+                    $file_stream
+                );
+
+                if(is_resource($file_stream)){
+                    fclose($file_stream);
+                }
+            }
+
+            $this->update_status->update(
+                $this->request_data['user']->id,
+                $this->new_record,
+                "done"
+            );
+        }
+        catch(Exception $err){
+            throw new UploadToBucketException("upload to bucket err for ".$this->content_id.": " . $err->getMessage());
+        }
+        
     }
 
     

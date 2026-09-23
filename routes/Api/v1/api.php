@@ -13,7 +13,9 @@ Route::prefix('v1')->group(function(){
     Route::post('/load-video-details', [ContentController::class,'load_content_details']);
 
     Route::prefix('user')->group(function(){
-    
+
+        
+
         Route::get('login', [UserController::class, 'login_view'])->name('login');
         Route::post('login', [UserController::class, 'login']);
 
@@ -26,8 +28,12 @@ Route::prefix('v1')->group(function(){
             
             Route::post('/check-auth',[UserController::class,'check_auth']);
             Route::post('/upload',[ContentController::class,'upload']);
+            Route::post('/get-user-content', [ContentController::class,'get_user_content']);
 
             Route::post('logout', [UserController::class, 'logout']);
+
+
+            Route::post('push-test-notification', [UserController::class, 'push_test_notification']);
         });
 
     });

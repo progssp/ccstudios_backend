@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use App\Jobs\ProcessContentJob;
 use App\Services\ContentPipelineService;
@@ -24,47 +25,49 @@ class ContentController extends Controller
                 
         $validator = Validator::make($request->all(),[
             'actual_content' => 'required|file',
-            'thumbnail' => 'required|file',
-            'video_name' => 'required',
+            // 'thumbnail' => 'required|file',
+            // 'video_name' => 'required',
         ]);
         if($validator->fails()){
             return response()->json(['status'=>false,'errors'=>$validator->errors()]);
         }
 
+        
+
        
         
-            $data = $request->all();
-            unset($data['actual_content']);
-            unset($data['thumbnail']);
-            $data['user'] = $request->user();
+        $data = $request->all();
+        unset($data['actual_content']);
+        unset($data['thumbnail']);
+        $data['user'] = $request->user();
 
-            $input_file_name = Str::random();
-            
-            $path = $request->file('actual_content')
-            ->storeAs('uploads',$input_file_name.'.'.$request->file('actual_content')
-            ->getClientOriginalExtension(),'local');
-            
-            $absInputDir = storage_path('app/private/'.$path);
-
-            $outputDir = 'hls_outputs/'.$input_file_name;
-            $absOutputDir = storage_path('app/private/'.$outputDir);
+        $input_file_name = Str::random();
         
+        $path = $request->file('actual_content')
+        ->storeAs('uploads',$input_file_name.'.'.$request->file('actual_content')
+        ->getClientOriginalExtension(),'local');
         
+        $absInputDir = storage_path('app/private/'.$path);
 
-            ProcessContentJob::dispatch(
-                $data,
-                $input_file_name,
-                $absInputDir,
-                $absOutputDir
-            );
+        $outputDir = 'hls_outputs/'.$input_file_name;
+        $absOutputDir = storage_path('app/private/'.$outputDir);
+    
+    
 
-            return response()->json([
-                'status' => true,
-                'msg' => 'uploaded',
-                'input_file_name' => $input_file_name,
-                'orig_file_path' => $absInputDir,
-                'output_file_path' => $absOutputDir,
-            ]);
+        ProcessContentJob::dispatch(
+            $data,
+            $input_file_name,
+            $absInputDir,
+            $absOutputDir
+        );
+
+        return response()->json([
+            'status' => true,
+            'msg' => 'uploaded',
+            'input_file_name' => $input_file_name,
+            'orig_file_path' => $absInputDir,
+            'output_file_path' => $absOutputDir,
+        ]);
        
     }
 
@@ -75,6 +78,18 @@ class ContentController extends Controller
         }
         else{
             $result = CcstudiosContent::orderBy('id')->get();
+            return response()->json(['status' => true,'content'=>$result]);
+        }
+    }
+
+    public function get_user_content(Request $request){
+        if($request->input('vid_to_leave') !== null){
+            $result = CcstudiosContent::where('video_name_identifier','not like',$request->input('vid_to_leave'))->orderBy('id','DESC')->get();
+            return response()->json(['status' => true,'content'=>$result]);
+        }
+        else{
+            $result = CcstudiosContent::where('user_id',$request->user()->id)
+            ->orderBy('id')->get();
             return response()->json(['status' => true,'content'=>$result]);
         }
     }
