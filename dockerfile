@@ -20,6 +20,7 @@ RUN mkdir -p /var/log/supervisor /var/run /var/log/nginx && chown -R www-data:ww
 
 # copy nginx conf
 COPY nginx.conf /etc/nginx/sites-available/default
+COPY supervisor.conf /etc/supervisor/conf.d/supervisord.conf
 
 COPY start.sh /usr/local/bin/start.sh
 RUN dos2unix /usr/local/bin/start.sh && chmod +x /usr/local/bin/start.sh
